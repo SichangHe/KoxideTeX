@@ -29,16 +29,16 @@ use super::*;
 
 const END_OF_EXPRESSION: &[&str] = &["}", "\\endgroup", "\\end", "\\right", "&"];
 
-pub struct Parser<'a, L: LexerInterface> {
+pub struct Parser<'a> {
     pub mode: Mode,
-    pub gullet: MacroExpander,
+    pub gullet: MacroExpander<'a>,
     pub settings: &'a Settings,
     pub leftright_depth: usize,
     pub next_token: Option<Token>,
 }
 
-impl<'a, L: LexerInterface> Parser<'a, L> {
-    pub fn new(input: &'a str, settings: &'a Settings) -> Parser<'a, L> {
+impl<'a> Parser<'a> {
+    pub fn new(input: &'a str, settings: &'a Settings) -> Parser<'a> {
         Self {
             mode: Mode::Math,
             gullet: MacroExpander::new(input, settings, Mode::Math),

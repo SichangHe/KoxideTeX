@@ -25,6 +25,7 @@ pub mod utils;
 use build_common::*;
 use build_tree::*;
 use dom_tree::*;
+use macro_expander::*;
 use options::*;
 use parse_error::*;
 use parse_node::*;
