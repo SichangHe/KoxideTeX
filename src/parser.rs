@@ -25,20 +25,16 @@
 //! functionality into self-contained functions.
 //!
 //! The functions return ParseNodes.
-
-use crate::{
-    settings::Settings,
-    token::{LexerInterface, Token},
-};
+use super::*;
 
 const END_OF_EXPRESSION: &[&str] = &["}", "\\endgroup", "\\end", "\\right", "&"];
 
 pub struct Parser<'a, L: LexerInterface> {
-    mode: Mode,
-    gullet: MacroExpander,
-    settings: &'a Settings,
-    leftright_depth: usize,
-    next_token: Option<Token<'a, L>>,
+    pub mode: Mode,
+    pub gullet: MacroExpander,
+    pub settings: &'a Settings,
+    pub leftright_depth: usize,
+    pub next_token: Option<Token>,
 }
 
 impl<'a, L: LexerInterface> Parser<'a, L> {
@@ -53,12 +49,12 @@ impl<'a, L: LexerInterface> Parser<'a, L> {
     }
     /// Checks a result to make sure it has the right type, and throws an
     /// appropriate error otherwise.
-    fn expect(&mut self, text: &str, consume: bool) -> Result<(), ParseError<'a, L>> {
+    fn expect(&mut self, text: &str, consume: bool) -> Result<(), ParseError> {
         if let Some(next_token) = self.fetch() {
             if next_token.text != text {
                 return Err(ParseError::new(
-                    format!("Expected '{}', got '{}'", text, next_token.text),
-                    next_token,
+                    &format!("Expected '{}', got '{}'", text, next_token.text),
+                    Some(next_token),
                 ));
             }
             if consume {
@@ -78,7 +74,7 @@ impl<'a, L: LexerInterface> Parser<'a, L> {
     /// Return the current lookahead token, or if there isn't one (at the
     /// beginning, or if the previous lookahead token was consume()d),
     /// fetch the next token as the new lookahead token and return it.
-    fn fetch(&mut self) -> Option<&Token<'a, L>> {
+    fn fetch(&mut self) -> Option<&Token> {
         if self.next_token.is_none() {
             self.next_token = self.gullet.expand_next_token();
         }
@@ -91,7 +87,7 @@ impl<'a, L: LexerInterface> Parser<'a, L> {
     }
 
     /// Main parsing function, which parses an entire input.
-    pub fn parse(&mut self) -> Result<Vec<AnyParseNode>, ParseError<'a, L>> {
+    pub fn parse(&mut self) -> Result<Vec<AnyParseNode>, ParseError> {
         if !self.settings.global_group {
             // Create a group namespace for the math expression.
             // (LaTeX creates a new group for every $...$, $$...$$, \[...\].)
@@ -106,7 +102,7 @@ impl<'a, L: LexerInterface> Parser<'a, L> {
         }
 
         // Try to parse the input
-        let parse = self.parse_expression(false);
+        let parse = self.parse_expression(false, None);
 
         if parse.is_ok() {
             // If we succeeded, make sure there's an EOF at the end
@@ -126,18 +122,15 @@ impl<'a, L: LexerInterface> Parser<'a, L> {
 
     /// Fully parse a separate sequence of tokens as a separate job.
     /// Tokens should be specified in reverse order, as in a MacroDefinition.
-    fn subparse(
-        &mut self,
-        tokens: &[Token<'a, L>],
-    ) -> Result<Vec<AnyParseNode>, ParseError<'a, L>> {
+    pub fn subparse(&mut self, tokens: &[Token]) -> Result<Vec<AnyParseNode>, ParseError> {
         // Save the next token from the current job.
         let old_token = self.next_token.take();
         self.consume();
 
         // Run the new job, terminating it with an excess '}'
-        self.gullet.push_token(Token::new("}", None));
+        self.gullet.push_token(Token::new("}".into(), None));
         self.gullet.push_tokens(tokens);
-        let parse = self.parse_expression(false)?;
+        let parse = self.parse_expression(false, None)?;
         self.expect("}", true)?;
 
         // Restore the next token from the current job.
@@ -159,7 +152,7 @@ impl<'a, L: LexerInterface> Parser<'a, L> {
         &mut self,
         break_on_infix: bool,
         break_on_token_text: Option<&str>,
-    ) -> Result<Vec<AnyParseNode>, ParseError<'a, L>> {
+    ) -> Result<Vec<AnyParseNode>, ParseError> {
         let mut body = Vec::new();
 
         // Keep adding atoms to the body until we can't parse any more atoms (either
@@ -212,10 +205,7 @@ impl<'a, L: LexerInterface> Parser<'a, L> {
     ///
     /// There can only be one infix operator per group. If there's more than one
     /// then the expression is ambiguous. This can be resolved by adding {}.
-    fn handle_infix_nodes(
-        &self,
-        body: Vec<AnyParseNode>,
-    ) -> Result<Vec<AnyParseNode>, ParseError<'a, L>> {
+    fn handle_infix_nodes(&self, body: Vec<AnyParseNode>) -> Result<Vec<AnyParseNode>, ParseError> {
         let mut over_index = -1;
         let mut func_name = "";
 

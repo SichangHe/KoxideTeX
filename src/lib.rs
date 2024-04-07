@@ -2,6 +2,7 @@ use std::{
     cmp::PartialEq,
     collections::HashMap,
     fmt::{self, Display},
+    sync::Arc,
 };
 
 use lazy_regex::regex;
@@ -13,20 +14,25 @@ pub mod dom_tree;
 pub mod macro_expander;
 pub mod options;
 pub mod parse_error;
+pub mod parse_node;
 pub mod parse_tree;
 pub mod parser;
 pub mod settings;
+pub mod source_location;
 pub mod token;
 pub mod utils;
 
-use build_common::make_span;
-use build_tree::build_tree;
-use dom_tree::{CssStyle, DomSpan, HtmlDomNode, Span, SymbolNode};
-use options::Options;
-use parse_error::ParseError;
-use parse_tree::parse_tree;
-use settings::Settings;
-use token::Token;
+use build_common::*;
+use build_tree::*;
+use dom_tree::*;
+use options::*;
+use parse_error::*;
+use parse_node::*;
+use parse_tree::*;
+use parser::*;
+use settings::*;
+use source_location::*;
+use token::*;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
@@ -43,7 +49,7 @@ pub fn render_to_string(expression: &str, options: &Settings) -> String {
 /// error message.  Otherwise, simply throws the error.
 fn render_error(error: ParseError, expression: &str, options: &Settings) -> DomSpan {
     let node = make_span(
-        &["katex-error"],
+        Some(vec!["katex-error".into()]),
         Some(vec![SymbolNode {
             text: expression.to_string(),
             ..Default::default()
