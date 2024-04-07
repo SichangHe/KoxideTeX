@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+//! This is a module for storing settings passed into KaTeX. It correctly handles
+//! default settings.
+use super::*;
 
 pub struct Settings {
     /// Render math in display mode, which puts the math in display style
